@@ -757,7 +757,8 @@
             imgBox.innerHTML = ''; 
 
             const videoEl = document.createElement('video');
-            videoEl.src = `${location.pathname}03_cuts_v2/${sceneId}.mp4`;
+            const fileName = sceneId.toLowerCase();
+            videoEl.src = `${location.pathname}03_cuts_v2/${fileName}.mp4`;
             videoEl.style.width = '100%';
             videoEl.style.height = '100%';
             videoEl.style.objectFit = 'cover';
