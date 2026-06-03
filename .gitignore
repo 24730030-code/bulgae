@@ -1,0 +1,45 @@
+# OS 관련 파일
+.DS_Store
+Thumbs.db
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+target/
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+
+# 환경 설정
+.env
+*.local
+
+# 빌드 결과물
+dist/
+build/
+out/
+
+/01_reference/before
+/02_cuts_v1/option
+/02_cuts_v1/index.html
+/03_cuts_v2/list
+/03_cuts_v2/index.html
+/prompts.md
+finalScript.pdf
+
