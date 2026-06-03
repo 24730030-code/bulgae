@@ -157,7 +157,7 @@
         /* --- 비주얼 영역: { 1350 x 450 px } 규격 절대 고정 --- */
         .visual-area {
             width: 100%;
-            height: 450px; 
+            height: 280px; 
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -186,7 +186,7 @@
         .image-box {
             width: 100%;
             max-width: 1350px; 
-            height: 400px; 
+            height: 225px; 
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -757,7 +757,7 @@
             imgBox.innerHTML = ''; 
 
             const videoEl = document.createElement('video');
-            videoEl.src = `${location.pathname}03_cuts_v2/${sceneId}.mp4`;
+            videoEl.src = `${sceneId}.mp4`;
             videoEl.style.width = '100%';
             videoEl.style.height = '100%';
             videoEl.style.objectFit = 'cover';
