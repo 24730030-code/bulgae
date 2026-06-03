@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>까막 마을의 불개 - 인터랙티브 스토리</title>
+    <style>
+        /* 하늘축복 인제군체 웹폰트 */
+        @font-face {
+            font-family: 'SkyblessingInje';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2403-2@1.0/SkyblessingInje.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        :root {
+            --bg-base: #030a0d; /* 깊은 청록 기운이 도는 기괴하고 어두운 동굴 톤 */
+            --point-red: #cc2424; 
+            --point-teal: #147370;
+            --point-teal-bright: #39dfd9;
+            --text-main: #d3ebe9;
+            --text-muted: #629895;
+            --font-title: 'SkyblessingInje', serif;
+            --font-ui: 'Courier New', 'MS Gothic', 'Apple SD Gothic Neo', monospace;
+            --panel-border: 3px double var(--point-teal);
+        }
+
+        @keyframes flicker {
+            0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100% {
+                opacity: 1;
+                text-shadow: 0 0 10px rgba(204, 36, 36, 0.8), 0 0 2px rgba(204, 36, 36, 1);
+            }
+            20%, 21.999%, 63%, 63.999%, 65%, 69.999% {
+                opacity: 0.25;
+                text-shadow: none;
+            }
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+
+        @keyframes noise {
+            0% { background-position: 0 0; }
+            100% { background-position: 500px 500px; }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 1비트 도트 텍스처 및 스캔라인 화면 오버레이 */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 255, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 1000;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background-image: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.8) 100%);
+            z-index: 1001;
+            pointer-events: none;
+        }
+
+        header {
+            padding: 15px 30px;
+            border-bottom: 4px double var(--point-teal);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #020608;
+            z-index: 100;
+            flex-shrink: 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.9);
+        }
+
+        .main-title {
+            font-family: var(--font-title);
+            font-size: 1.6rem;
+            color: var(--point-red);
+            letter-spacing: 4px;
+            animation: flicker 4s infinite;
+        }
+
+        .status-panel {
+            display: flex;
+            gap: 24px;
+        }
+
+        .stat { width: 110px; position: relative; }
+
+        .stat-label {
+            font-family: var(--font-ui);
+            font-weight: bold;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .stat-label::after {
+            content: " ▼";
+            font-size: 0.6rem;
+            color: var(--point-teal-bright);
+        }
+
+        .stat-bar-bg {
+            height: 10px;
+            background: #010405;
+            width: 100%;
+            border: 1px solid var(--point-teal);
+            padding: 1px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
+        }
+
+        .stat-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s cubic-bezier(0.1, 0.8, 0.1, 1);
+            background: var(--point-teal-bright);
+            box-shadow: 0 0 8px var(--point-teal-bright);
+        }
+        #fill-s { background: var(--point-teal-bright); }
+        #fill-e { background: var(--point-red); box-shadow: 0 0 8px var(--point-red); }
+        #fill-b { background: #8ba2a1; box-shadow: 0 0 8px #8ba2a1; }
+
+        main {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            background: radial-gradient(circle, #051418 0%, #010507 100%);
+            overflow: hidden;
+        }
+
+        /* --- 비주얼 영역: { 1350 x 450 px } 규격 절대 고정 --- */
+        .visual-area {
+            width: 100%;
+            height: 450px; 
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 12px 20px 8px 20px;
+            text-align: center;
+            border-bottom: 4px double var(--point-teal);
+            background: rgba(1, 6, 8, 0.85);
+            position: relative;
+        }
+
+        .visual-area::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-size: 20px 20px;
+            background-image: 
+                linear-gradient(to right, rgba(20, 115, 112, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(20, 115, 112, 0.05) 1px, transparent 1px);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 이미지 박스의 순수 크기 및 연출 공간을 합쳐 전체 높이 450px 확보 */
+        .image-box {
+            width: 100%;
+            max-width: 1350px; 
+            height: 400px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0; 
+            border: 3px double var(--point-teal-bright);
+            color: var(--point-teal-bright);
+            font-family: var(--font-title);
+            font-size: 1.25rem;
+            position: relative;
+            background: #010405;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.98), 0 0 20px rgba(20, 115, 112, 0.45);
+            z-index: 2;
+            overflow: hidden;
+        }
+
+        .image-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            display: block;
+        }
+
+        .fallback-text {
+            font-family: var(--font-title);
+            font-size: 3.5rem;
+            color: var(--point-teal-bright);
+            letter-spacing: 6px;
+            text-shadow: 0 0 15px rgba(57, 223, 217, 0.6);
+            user-select: none;
+            animation: pulse-light 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-light {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        .image-box::before {
+            content: "■";
+            position: absolute;
+            font-size: 8px;
+            color: var(--point-teal-bright);
+            top: 4px; left: 4px;
+            z-index: 10;
+        }
+        .image-box::after {
+            content: "■";
+            position: absolute;
+            font-size: 8px;
+            color: var(--point-teal-bright);
+            bottom: 4px; right: 4px;
+            z-index: 10;
+        }
+
+        .visual-description {
+            font-family: var(--font-title);
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            max-width: 1350px;
+            height: 30px; 
+            margin-top: 5px;
+            line-height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 1px;
+            z-index: 2;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* --- Full Width Timer Bar --- */
+        .timer-container {
+            width: 100%;
+            height: 6px;
+            background: #010507;
+            overflow: hidden;
+            position: relative;
+            z-index: 50;
+            flex-shrink: 0;
+            border-top: 1px solid var(--point-teal);
+            border-bottom: 1px solid var(--point-teal);
+        }
+
+        #timer-fill {
+            height: 100%;
+            width: 100%;
+            background: var(--point-red);
+            box-shadow: 0 0 15px rgba(204, 36, 36, 1);
+            transition: width 0.1s linear;
+        }
+
+        /* --- UI 하단 레이아웃 최적화 (스크롤바 완전 제거 및 화면 맞춤) --- */
+        .ui-overlay {
+            flex: 1;
+            background: linear-gradient(to top, rgba(15, 59, 58, 0.15) 0%, #010507 100%);
+            padding: 15px 32px;
+            display: flex;
+            justify-content: center; 
+            align-items: stretch; 
+            overflow: hidden;
+            position: relative;
+        }
+
+        .ui-overlay::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-size: 15px 15px;
+            background-image: 
+                linear-gradient(to right, rgba(204, 36, 36, 0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(204, 36, 36, 0.02) 1px, transparent 1px);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .content-wrapper {
+            width: 100%;
+            max-width: 1350px; 
+            display: grid;
+            grid-template-columns: 2fr 0.6fr; 
+            gap: 25px;
+            align-items: stretch;
+            z-index: 2;
+        }
+
+        /* 선택지 섹션 */
+        .options-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            order: 2; 
+            justify-content: center;
+        }
+
+        .option-btn {
+            background: #02080a;
+            border: 2px solid var(--point-teal);
+            color: var(--text-muted);
+            padding: 14px 18px;
+            text-align: left;
+            font-family: var(--font-title);
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s steps(4);
+            box-shadow: 4px 4px 0px rgba(20, 115, 112, 0.2);
+            position: relative;
+        }
+
+        .option-btn::before {
+            content: "[SELECT] ";
+            font-family: var(--font-ui);
+            font-size: 0.75rem;
+            color: var(--point-teal);
+            letter-spacing: 1px;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            border-color: var(--point-teal-bright);
+            color: #ffffff;
+            background: var(--point-teal);
+            padding-left: 24px;
+            box-shadow: 0 0 10px rgba(57, 223, 217, 0.4);
+        }
+
+        .option-btn:hover:not(:disabled)::before {
+            color: #fff;
+            content: "▶ ACTIONS: ";
+        }
+
+        /* 대사 섹션: 패딩과 자간, 줄바꿈 최적화로 스크롤 없이 가독성 극대화 */
+        .text-section {
+            order: 1; 
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            background: #010405;
+            border: 3px double var(--point-teal);
+            padding: 16px 24px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .text-section::before {
+            content: "+";
+            position: absolute;
+            font-size: 14px;
+            font-family: monospace;
+            color: var(--point-teal);
+            top: 5px; left: 8px;
+        }
+        .text-section::after {
+            content: "+";
+            position: absolute;
+            font-size: 14px;
+            font-family: monospace;
+            color: var(--point-teal);
+            bottom: 5px; right: 8px;
+        }
+
+        .scene-meta {
+            font-family: var(--font-ui);
+            color: var(--point-teal-bright);
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+
+        .scene-title {
+            font-family: var(--font-title);
+            font-size: 1.4rem;
+            color: #ffffff;
+            margin-bottom: 10px;
+            border-left: 5px solid var(--point-red);
+            padding-left: 15px;
+            letter-spacing: 2px;
+        }
+
+        .dialogue-box {
+            font-size: 0.95rem;
+            line-height: 1.45;
+            color: #b1d0cd;
+            word-break: keep-all;
+            white-space: pre-line;
+            font-family: var(--font-ui);
+            overflow: hidden;
+        }
+
+        /* --- 공통 오버레이 (인트로 / 엔딩) --- */
+        .full-overlay {
+            position: fixed;
+            inset: 0;
+            background: #010406;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .full-overlay::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%);
+            background-size: 100% 6px;
+            pointer-events: none;
+        }
+
+        .intro-student-info {
+            font-family: var(--font-ui);
+            font-size: 0.9rem;
+            color: var(--point-teal-bright);
+            letter-spacing: 4px;
+            margin-bottom: 15px;
+            border: 1px solid var(--point-teal);
+            padding: 4px 15px;
+            background: rgba(0,0,0,0.4);
+        }
+
+        .big-title {
+            font-family: var(--font-title);
+            font-size: 4.5rem;
+            color: var(--point-red);
+            margin-bottom: 15px;
+            text-shadow: 0 0 30px rgba(204, 36, 36, 0.6);
+            animation: flicker 3s infinite;
+            letter-spacing: 8px;
+        }
+
+        .btn-start {
+            font-family: var(--font-title);
+            font-size: 1.35rem;
+            color: #ffffff;
+            border: 2px solid var(--point-red);
+            padding: 12px 50px;
+            background: var(--point-red);
+            cursor: pointer;
+            margin-top: 30px;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(204, 36, 36, 0.4);
+            letter-spacing: 2px;
+        }
+
+        .btn-start:hover {
+            background: transparent;
+            color: var(--point-red);
+            box-shadow: 0 0 25px rgba(204, 36, 36, 0.85);
+        }
+
+        @media (max-width: 900px) {
+            .content-wrapper { 
+                grid-template-columns: 1fr; 
+                gap: 25px;
+            }
+            .options-section { order: 2; }
+            .text-section { order: 1; text-align: center; align-items: center; }
+            .scene-title { border-left: none; padding-left: 0; }
+            .visual-area { height: auto; max-height: 450px; }
+            .image-box { height: 250px; }
+            .big-title { font-size: 3rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="intro-layer" class="full-overlay">
+        <span class="intro-student-info">24730030 정제현</span>
+        <h1 class="big-title">까막 마을의 불개</h1>
+        <p style="font-family: var(--font-title); color: var(--text-muted); letter-spacing: 3px; font-size: 1.1rem;">금기된 주술, 부서진 하늘, 다시 쓰이는 인과</p>
+        <button class="btn-start" onclick="startGame()">기록되지 않은 여행 시작</button>
+    </div>
+
+    <div id="ending-layer" class="full-overlay" style="display: none;">
+        <h2 id="end-subtitle" style="font-family: var(--font-title); font-size: 3.2rem; color: #eee; margin-bottom:20px; letter-spacing: 4px;">결말</h2>
+        <p id="end-desc" class="dialogue-box" style="max-width: 650px; margin-bottom: 40px; text-align: center; color: #999; line-height: 2;"></p>
+        <button class="btn-start" onclick="location.reload()">윤회하기</button>
+    </div>
+
+    <header>
+        <div class="main-title">까막 마을의 불개</div>
+        <div class="status-panel">
+            <div class="stat">
+                <span class="stat-label">원혼 결속도(S)</span>
+                <div class="stat-bar-bg"><div id="fill-s" class="stat-fill"></div></div>
+            </div>
+            <div class="stat">
+                <span class="stat-label">감시 노출도(E)</span>
+                <div class="stat-bar-bg"><div id="fill-e" class="stat-fill"></div></div>
+            </div>
+            <div class="stat">
+                <span class="stat-label">육신 붕괴도(B)</span>
+                <div class="stat-bar-bg"><div id="fill-b" class="stat-fill"></div></div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="visual-area">
+            <div id="ui-image" class="image-box"></div>
+            <div id="ui-visual-desc" class="visual-description">연출 설명</div>
+        </div>
+
+        <div class="timer-container">
+            <div id="timer-fill"></div>
+        </div>
+
+        <div class="ui-overlay">
+            <div class="content-wrapper">
+                <section id="ui-options" class="options-section"></section>
+                <section class="text-section">
+                    <div id="ui-meta" class="scene-meta">SCENE ID</div>
+                    <h2 id="ui-title" class="scene-title">장면 제목</h2>
+                    <div id="ui-dialogue" class="dialogue-box">대사 및 지문</div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let S = 0, E = 0, B = 0; 
+        let history = { sun: false, moon: false };
+        let timerInterval = null;
+        let timeLeft = 20; 
+        let currentSceneId = "S1"; 
+
+        const scenes = {
+            S1: {
+                meta: "[소환 의식]",
+                title: "핏빛 태양 아래",
+                visual: "까막 마을 외곽에서 촌주가 영매 앞에 무릎 꿇고 기도하는 순간, 붉은 부적과 불길한 ‘해’가 대지를 갈라뜨린다.",
+                getDialogue: () => {
+                    let log = (S >= 20) ? "(계단 안정됨) " : "(계단 지연됨) ";
+                    if (E >= 15) log += "(감시 시작) ";
+                    return `${log}\n촌주: 영매여, 저 천벌 같은 눈에 백성들이 생으로 타 죽어가오…! 낮이고 밤이고 살점이 타는 구린내가 온 마을에 진동을 한단 말이오! 제발… 옛 까막 마을을 되찾아주시오! 대가라면 내 무엇이든 치를 테니!"
+                    \n영매: 촌주님, 그 입을 닥치소서. 방금 뱉은 그 말조차 저 하늘의 눈은 '반역'으로 기록하옵니다. 정녕 이 금기의 응보를 감당할 준비는 되신 겁니까?
+                    \n촌주: 내 이미 이 산을 오를 때부터 목숨 따위는 버렸소! 마을에 더는 묻을 땅도 없소이다!
+                    \n영매: …좋습니다. 해와 달을 삼킬 신수, 불개를 깨워 저 거만한 눈을 멀게 해야 합니다. 하지만 신수를 부르는 불씨는 공짜가 아닌 법. 촌주여, 무엇을 제물로 바쳐 소환하시겠습니까?`;
+                },
+                options: [
+                    { text: "마을의 아이들의 숨결을 돋우어 소환", s: 25, e: 10, b: 0, next: "S2" },
+                    { text: "지하 원혼들의 원망을 엮어 소환", s: 20, e: 0, b: 10, next: "S2" }
+                ]
+            },
+            S2: {
+                meta: "[마을 탐색]",
+                title: "안개 낀 기와집",
+                visual: "안개 낀 마을에서 ‘해’의 빛에 촌민들이 재로 소멸하고, 종파 감시자가 지붕 위에서 마을을 살핀다.",
+                getDialogue: () => {
+                    let log = "";
+                    if (E >= 20) log = "감시자가 당신을 발견했습니다! ";
+                    if (S >= 30) log += "혼령들이 당신의 기운에 동요합니다. ";
+                    if (B >= 10) log += "주위 공간이 조금씩 일렁입니다. ";
+                    return `${log}\n불개: 크르르…… 혓바닥이 아리구나. 이 지독한 불길 탄내의 주인이 저 하늘에 박힌 눈깔인가.
+                    \n혼령: 우릴… 이 몹쓸 결계에서 풀어주면 따르겠다. 저 지옥의 불빛을 꺼다오… 영매야…… 저 노인네를 믿지 마라. 지 자식들은 진즉에 광간에 숨겨두고 우릴 사지로 밀어 넣은 음흉한 자다.
+                    \n영매: 산 자의 기만보다 죽은 자의 원망이 더 달콤한 법이지. 불개여, 저들의 곡소리가 들리느냐.
+                    \n감시자: 지리 좌표 식별 중. 빛에 노출된 생령의 소멸을 확인하였다. 명부에 기록되지 않은 요물이 탐지되었으니…… 추적하여 멸하겠다.`;
+                },
+                options: [
+                    { text: "혼령 해방", s: 10, e: -5, b: 0, next: "S3" },
+                    { text: "주민을 미끼로 사용", s: 25, e: 20, b: 0, next: "S3" }
+                ]
+            },
+            S3: {
+                meta: "[결계 접근]",
+                title: "산속 제단",
+                visual: "악산 속 거대한 돌 제단을 둘러싼 붉은 결계가 요동치며, 가짜 원귀들이 불개를 현혹하고 산천이 뒤틀린다.",
+                getDialogue: () => {
+                    let log = "";
+                    if (S < 40) log = "가짜 원혼들이 당신의 식별을 방해합니다. ";
+                    if (B >= 20) log += "통제가 불안정해집니다. ";
+                    if (E >= 30) log += "신도들이 무기를 들고 나타납니다. ";
+                    return `${log}\n종파 신도: 진귀와 사귀를 네 놈이 구별할 수 있겠느냐? 이 섭리의 결계는 결코 깨지지 않는다. 가련한 미물들이 껍데기뿐인 신수를 데리고 기어왔구나. 이 안에서 네 놈의 가짜 권능은 흩어질 뿐이다.
+                    \n불개: 쳇, 사방에서 비린내가 진동을 하는군. 어떤 놈이 진짜 살점이고 어떤 놈이 허상인지 분간이 가질 않아. 영매여, 저 방울 흔드는 놈의 목을 당장 뜯어발기면 되는가?
+                    \n영매: 안 됩니다, 신수여! 저것들은 종파 놈들이 삿된 기운으로 빚어낸 허상입니다. 성급히 삼켰다간 이빨이 먼저 녹아내릴 것입니다!
+                    \n\n삿된 영을 잘못 흡수하면…… 신수의 육신이 안에서부터 썩어 문드러질 것이다.`;
+                },
+                options: [
+                    { text: "의식으로 선별 돌파", s: 10, e: 0, b: 0, next: "S4" },
+                    { text: "결계 정면 파괴 및 강제 흡수", s: 25, e: 0, b: 15, next: "S4" }
+                ]
+            },
+            S4: {
+                meta: "[의식 붕괴]",
+                title: "흔들리는 망자 계단",
+                visual: "붉은 결계로 둘러싸인 악산의 돌 제단에서 영매가 피를 흘리며 무속의 진을 유지하고, ‘해’의 가혹한 빛이 불개를 태워 죽이려 한다.",
+                getDialogue: () => {
+                    let log = "";
+                    if (S < 50) log = "계단이 금방이라도 무너질 듯 위태롭습니다. ";
+                    if (E >= 35) log += "감시자들이 계단 아래까지 추격해왔습니다. ";
+                    if (B >= 25) log += "불개의 육신에 금이 가기 시작합니다. ";
+                    return `${log}\n영매: 이대로면…… 이대로면 망자들의 계단이 무너집니다! 소생의 살점과 영혼이 다 닳아 없어지고 있단 말입니다! 더는…… 더는 버틸 수가 없습니다……!
+                    \n촌주: 영매! 여기서 멈추면 내 아이들은 어찌 되오! 어떻게든 버티시오, 무당이 신명도 안 남았단 말이요?!
+                    \n혼령: 우리는 또다시 밟히지 않겠다! 우리를 한낱 제물로 쓰지 마라! 우리는 또다시 양반 놈들의 발판이 되지 않겠다! 차라리 이 신수놈과 함께 추락하리라!
+                    \n불개: 발목이 무겁군. 아래에서는 찢어 죽일 노인네가 소리를 지르고, 발밑에선 죽은 놈들이 나를 끌어내린다. 영매여, 네가 결단해라. 네 목숨을 바칠 테냐, 아니면 이 원귀 놈들을 다 씹어 삼켜줄까?`;
+                },
+                options: [
+                    { text: "원혼 설득 및 보호", s: 5, e: 10, b: 0, next: "S5" },
+                    { text: "영매 희생 의식", s: 30, e: 15, b: 0, next: "S5" }
+                ]
+            },
+            S5: {
+                meta: "[계단 상승]",
+                title: "구천의 손아귀",
+                visual: "하늘에 닿을 듯한 고도에서 수많은 원혼의 손들이 불개를 끌어내리고, 해의 화염과 달의 은빛 골가루가 살풍처럼 몰아친다.",
+                getDialogue: () => `불개: 허공이 뒤틀리는구나. 위를 보면 온몸이 구워질 것 같고, 아래를 보면 뼛속까지 얼어붙는 골가루가 휘몰아치니…… 하늘이란 곳은 지옥보다 더 지독한 곳이로군.
+                \n하늘에 오를수록 천화가 네 가죽을 태우고, 명부의 한계가 네 뼈를 부술 것이다. 미물아, 네가 짊어진 인간들의 원망이 너무 무겁지 않느냐?
+                \n혼령들의 속삭임: 올라가지 마…… 올라가 봤자 저 높은 곳의 신들은 우릴 기억조차 하지 않아. 그냥 여기서 우리와 함께 검은 안개가 되자……
+                \n불개: 시끄럽다. 나는 삼키기 위해 태어난 존재. 내 이빨이 저 해와 달의 목덜미에 닿기 전까지는, 그 누구도 나를 멈출 수 없다!`,
+                options: [
+                    { 
+                        text: "원혼을 밟고 고속 상승", s: -10, e: 0, b: 0, 
+                        callback: () => (S >= 40 && B < 50) ? "S6" : "S3"
+                    },
+                    { 
+                        text: "골가루 맞으며 원혼을 보호", s: 0, e: 0, b: -5,
+                        callback: () => (S >= 40 && B < 50) ? "S6" : "S3"
+                    }
+                ]
+            },
+            S6: {
+                meta: "[해 사냥]",
+                title: "태양 중심부",
+                visual: "불개가 태양의 중심을 물어뜯는 순간 일식이 일어나며 결계와 사학의 빛이 무너진다.",
+                getDialogue: () => {
+                    if (E >= 80 && B >= 60) return "태양이 당신을 압도합니다. 사냥에 실패했습니다.";
+                    return `태양: 경고. 오류 개체 '불개' 탐지. 섭리를 거스른 사악한 짐승이여…… 이 세상의 인과율과 기록에서 너를 영원히 말살하리라.
+                    \n불개: 크르르…… 섭리? 기록? 그딴 말장난으로 인간들을 구워대며 가두어 두었더냐! 네 놈의 그 오만한 눈깔부터…… 오늘 소멸시키겠다.
+                    \n일식이 시작되자, 비로소 불타던 마을에 살가운 차가운 바람이 돌기 시작한다. 그러나 법도를 깨뜨린 신수의 아가리 역시 붉은 핏물로 물들어간다.`;
+                },
+                options: [
+                    { text: "즉시 깊숙이 물어뜯기", s: 0, e: 15, b: 10, callback: () => checkSunSuccess() },
+                    { text: "육신 희생 맹렬한 도약", s: 0, e: -5, b: 20, callback: () => checkSunSuccess() },
+                    { text: "해의 눈동자 차단 초점", s: 0, e: -10, b: 0, callback: () => checkSunSuccess() }
+                ]
+            },
+            S7: {
+                meta: "[달 사냥]",
+                title: "달빛 재의 평원",
+                visual: "불개가 달을 물어뜯자 월식이 시작되고, 은빛 골가루가 멈춘다.",
+                getDialogue: () => {
+                    let log = "";
+                    if (B >= 50) log = "육신의 균열로 이동이 극도로 제한됩니다. ";
+                    if (S >= 60) log += "함께해온 혼령들이 달의 인력을 막아줍니다. ";
+                    return `${log}\n달: 미련한 신수여. 너는 이 저주받은 땅에 오기까지 너무 많은 백성의 영혼을 짓밟았고, 동료의 피를 마셨다. 그 업보의 서리에 갇혀…… 결국 한 걸음도 떼지 못하고 산산조각 나 깨지리라.
+                    \n불개: 크르르…… 업보라니, 듣기 좋은 말이군. 짓밟힌 자들의 원망마저 내 뼈가 되고 살이 되었다. 네놈이 내뿜는 뼛가루 따위로 이 굶주림을 막을 수 있을 것 같으냐!
+                    \n\n그토록 모질게 대지를 얼리던 잔인한 골가루가 멈추고, 기괴한 침묵이 찾아왔다. 이제 남은 것은 온전히 굳어버린 신수의 마지막 선택뿐이다.`;
+                },
+                options: [
+                    { text: "해방된 혼령들과 함께 돌격", s: 0, e: 0, b: -10, callback: () => { history.moon = true; return "S8"; } },
+                    { text: "한기를 버티며 강제 흡수 공격", s: -10, e: 0, b: -5, callback: () => { history.moon = true; return "S8"; } }
+                ]
+            },
+            S8: {
+                meta: "[금기된 시간]",
+                title: "최후의 심판",
+                visual: "일식과 월식 겹치며 온 세상이 흑백으로 변한다.",
+                getDialogue: () => `촌주: 핏빛 빛도…… 은빛 서리도 멈췄소. 바람조차 불지 않는구려. 영매여, 이 기괴한 정적은 대체 무엇이란 말이오? 우리가 이긴 것이오?
+                \n영매: …하늘의 시간마저 멈추게 한 대가입니다. 신수가 제 온몸을 던져 법도를 가로막았으니, 이제 온 세상이 그가 걸어온 자취를 심판할 것입니다.
+                \n\n하늘이 완전히 가려졌다. 네가 백성을 구원하기 위해 흘린 피와, 승리를 위해 짓밟은 자들의 원망…… 그 모든 발자취가 곧 네가 치러야 할 대가이니라. 너의 영혼의 무게를 달아 분기를 명하노라.`,
+                options: [
+                    { text: "결과 보기", callback: () => { finalizeGame(); return null; } }
+                ]
+            }
+        };
+
+        function checkSunSuccess() {
+            if (E >= 80 && B >= 60) return "S5";
+            history.sun = true;
+            return "S7";
+        }
+
+        function startGame() {
+            document.getElementById('intro-layer').style.display = 'none';
+            renderScene("S1");
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 20; 
+            const timerFill = document.getElementById('timer-fill');
+            timerFill.style.width = "100%";
+            
+            timerInterval = setInterval(() => {
+                timeLeft -= 0.1;
+                const percentage = (timeLeft / 20) * 100; 
+                timerFill.style.width = percentage + "%";
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeout(); 
+                }
+            }, 100);
+        }
+
+        function handleTimeout() {
+            const scene = scenes[currentSceneId];
+            if (!scene) return;
+            
+            const defaultOpt = scene.options[0];
+            if (defaultOpt) {
+                let next = defaultOpt.next;
+                if (defaultOpt.callback) {
+                    next = defaultOpt.callback(); 
+                }
+                if (next) renderScene(next);
+            }
+        }
+
+        function renderScene(sceneId) {
+            const scene = scenes[sceneId];
+            if (!scene) return;
+            
+            currentSceneId = sceneId; 
+
+            document.getElementById('ui-meta').innerText = scene.meta;
+            document.getElementById('ui-title').innerText = scene.title;
+            document.getElementById('ui-dialogue').innerText = scene.getDialogue();
+            document.getElementById('ui-visual-desc').innerText = scene.visual;
+            
+            const imgBox = document.getElementById('ui-image');
+            imgBox.innerHTML = ''; 
+
+            const videoEl = document.createElement('video');
+            videoEl.src = `${sceneId}.mp4`;
+            videoEl.style.width = '100%';
+            videoEl.style.height = '100%';
+            videoEl.style.objectFit = 'cover';
+            videoEl.style.display = 'block';
+            videoEl.autoplay = true;
+            videoEl.muted = false;
+            videoEl.loop = true;
+            videoEl.playsInline = true;
+
+            videoEl.onerror = function() {
+                imgBox.innerHTML = `<div class="fallback-text">${sceneId}</div>`;
+            };
+
+            imgBox.appendChild(videoEl);
+
+            const optBox = document.getElementById('ui-options');
+            optBox.innerHTML = "";
+            scene.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "option-btn";
+                btn.innerText = opt.text;
+                btn.onclick = () => {
+                    clearInterval(timerInterval);
+                    if (opt.s) S += opt.s;
+                    if (opt.e) E += opt.e;
+                    if (opt.b) B += opt.b;
+                    updateStats();
+                    
+                    let next = opt.next;
+                    if (opt.callback) next = opt.callback();
+                    if (next) renderScene(next);
+                };
+                optBox.appendChild(btn);
+            });
+
+            startTimer();
+        }
+
+        function updateStats() {
+            document.getElementById('fill-s').style.width = Math.min(100, Math.max(0, S)) + "%";
+            document.getElementById('fill-e').style.width = Math.min(100, Math.max(0, E)) + "%";
+            document.getElementById('fill-b').style.width = Math.min(100, Math.max(0, B)) + "%";
+        }
+
+        function finalizeGame(isGiveUp = false) {
+            clearInterval(timerInterval);
+            let endId = "E3";
+            if (isGiveUp || E >= 100 || S <= 30) {
+                endId = "E3";
+            } else if (E <= 80 && B <= 95 && S >= 60 && history.sun && history.moon) {
+                endId = "E1";
+            } else if (E <= 90 && B >= 90 && S >= 30) {
+                endId = "E2";
+            }
+            showEnding(endId);
+        }
+
+        function showEnding(id) {
+            const layer = document.getElementById('ending-layer');
+            const subtitle = document.getElementById('end-subtitle');
+            const desc = document.getElementById('end-desc');
+            layer.style.display = 'flex';
+
+            if (id === "E1") {
+                subtitle.innerText = "새벽의 해방";
+                subtitle.style.color = "var(--point-teal-bright)";
+                subtitle.style.textShadow = "0 0 15px rgba(57, 223, 217, 0.8)";
+                desc.innerText = "하늘의 감시안과 달의 골가루가 영원히 소멸한다. 타 죽지도, 얼어붙지도 않는 온화하고 푸르스름한 '진짜 새벽의 해'가 떠오르며 까막마을이 완전한 자유를 맞이한다. 불개는 조용히 눈을 감고 고향의 흙으로 돌아간다.";
+            } else if (id === "E2") {
+                subtitle.innerText = "박제된 밤";
+                subtitle.style.color = "#8ba2a1";
+                subtitle.style.textShadow = "0 0 10px rgba(139, 162, 161, 0.5)";
+                desc.innerText = "해의 감시가 사라져 주민들이 더 이상 불타 죽지는 않지만, 하늘에서 멈추지 않고 쏟아지는 차가운 골가루 때문에 마을 전체가 거대한 얼음 무덤으로 변해버린다. 주민들은 영원히 늙지도 죽지도 못한 채 차갑게 얼어붙은 '박제된 밤' 속에서 갇혀 살아간다.";
+            } else {
+                subtitle.innerText = "기록 말살";
+                subtitle.style.color = "var(--point-red)";
+                subtitle.style.textShadow = "0 0 15px rgba(204, 36, 36, 0.8)";
+                desc.innerText = "폭주한 해의 붉은 빛이 까막마을의 모든 가옥과 주민을 순식간에 불태우고 거대한 달의 골가루가 생명을 산산조각 낸다. 불개와 촌주, 영매, 그리고 까막마을 전체가 조선의 역사와 명부에서 단 한 줄의 흔적도 남기지 못한 채 '완전히 소거'된다.";
+            }
+        }
+
+        window.onload = updateStats;
+    </script>
+</body>
+</html>
