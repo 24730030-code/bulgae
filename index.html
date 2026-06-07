@@ -157,16 +157,18 @@
         /* --- 비주얼 영역: { 1350 x 450 px } 규격 절대 고정 --- */
         .visual-area {
             width: 100%;
-            height: 450px; 
             flex-shrink: 0;
+
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
             align-items: center;
-            padding: 12px 20px 8px 20px;
-            text-align: center;
-            border-bottom: 4px double var(--point-teal);
+
+            padding: 8px 20px 4px 20px;
+
+            /*border-bottom: 4px double var(--point-teal);*/
             background: rgba(1, 6, 8, 0.85);
+
             position: relative;
         }
 
@@ -184,9 +186,11 @@
 
         /* 이미지 박스의 순수 크기 및 연출 공간을 합쳐 전체 높이 450px 확보 */
         .image-box {
-            width: 100%;
-            max-width: 1350px; 
-            height: 400px; 
+            width: min(100%, 960px);
+            max-width: 1350px;
+            aspect-ratio: 16 / 9;
+            height: auto;
+            max-height: calc(min(52vh, 450px) - 50px); 
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -205,9 +209,32 @@
 
         .image-box img {
             width: 100%;
-            height: 100%;
-            object-fit: cover; 
-            display: block;
+            max-width: 960px;
+
+            aspect-ratio: 16 / 9;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+
+            padding: 0;
+
+            border: 3px double var(--point-teal-bright);
+
+            color: var(--point-teal-bright);
+            font-family: var(--font-title);
+            font-size: 1.25rem;
+
+            position: relative;
+
+            background: #010405;
+            box-shadow:
+                inset 0 0 30px rgba(0,0,0,0.98),
+                0 0 20px rgba(20,115,112,0.45);
+
+            z-index: 2;
+            overflow: hidden;
         }
 
         .fallback-text {
@@ -267,8 +294,9 @@
             position: relative;
             z-index: 50;
             flex-shrink: 0;
-            border-top: 1px solid var(--point-teal);
-            border-bottom: 1px solid var(--point-teal);
+            border: none;
+            /*border-top: 1px solid var(--point-teal);
+            border-bottom: 1px solid var(--point-teal);*/
         }
 
         #timer-fill {
@@ -280,16 +308,16 @@
         }
 
         /* --- UI 하단 레이아웃 최적화 (스크롤바 완전 제거 및 화면 맞춤) --- */
-        .ui-overlay {
+        /*.ui-overlay {
             flex: 1;
             background: linear-gradient(to top, rgba(15, 59, 58, 0.15) 0%, #010507 100%);
-            padding: 15px 32px;
+            padding: 10px 32px;
             display: flex;
             justify-content: center; 
             align-items: stretch; 
             overflow: hidden;
             position: relative;
-        }
+        }*/
 
         .ui-overlay::after {
             content: "";
@@ -303,7 +331,7 @@
             z-index: 1;
         }
 
-        .content-wrapper {
+        /*.content-wrapper {
             width: 100%;
             max-width: 1350px; 
             display: grid;
@@ -311,7 +339,7 @@
             gap: 25px;
             align-items: stretch;
             z-index: 2;
-        }
+        }*/
 
         /* 선택지 섹션 */
         .options-section {
@@ -370,6 +398,7 @@
             justify-content: center;
             position: relative;
             overflow: hidden;
+            margin:10px 20px 20px;
         }
 
         .text-section::before {
@@ -483,6 +512,42 @@
             box-shadow: 0 0 25px rgba(204, 36, 36, 0.85);
         }
 
+        main{
+            flex:1;
+            display:flex;
+            flex-direction:column;
+            overflow:hidden;
+        }
+
+        .top-content{
+            display:grid;
+            grid-template-columns:960px 260px;
+
+            gap:16px;
+
+            width:fit-content;
+
+            margin:8px auto 0 auto;
+
+            align-items:center;
+        }
+
+        .options-section{
+            display:flex;
+            flex-direction:column;
+            gap:12px;
+        }
+
+        .text-section{
+            width:1236px;
+            margin:10px auto 20px;
+        }
+
+        .section-divider{
+            width:100%;
+            border-top:4px double var(--point-teal);
+        }
+
         @media (max-width: 900px) {
             .content-wrapper { 
                 grid-template-columns: 1fr; 
@@ -491,7 +556,7 @@
             .options-section { order: 2; }
             .text-section { order: 1; text-align: center; align-items: center; }
             .scene-title { border-left: none; padding-left: 0; }
-            .visual-area { height: auto; max-height: 450px; }
+            .visual-area { width:960px; }
             .image-box { height: 250px; }
             .big-title { font-size: 3rem; }
         }
@@ -531,25 +596,26 @@
     </header>
 
     <main>
-        <div class="visual-area">
-            <div id="ui-image" class="image-box"></div>
-            <div id="ui-visual-desc" class="visual-description">연출 설명</div>
+        <div class="top-content">
+            <div class="visual-area">
+                <div id="ui-image" class="image-box"></div>
+                <div id="ui-visual-desc" class="visual-description"></div>
+            </div>
+
+            <section id="ui-options" class="options-section"></section>
         </div>
+
+        <div class="section-divider"></div>
 
         <div class="timer-container">
             <div id="timer-fill"></div>
         </div>
 
-        <div class="ui-overlay">
-            <div class="content-wrapper">
-                <section id="ui-options" class="options-section"></section>
-                <section class="text-section">
-                    <div id="ui-meta" class="scene-meta">SCENE ID</div>
-                    <h2 id="ui-title" class="scene-title">장면 제목</h2>
-                    <div id="ui-dialogue" class="dialogue-box">대사 및 지문</div>
-                </section>
-            </div>
-        </div>
+        <section class="text-section">
+            <div id="ui-meta" class="scene-meta"></div>
+            <h2 id="ui-title" class="scene-title"></h2>
+            <div id="ui-dialogue" class="dialogue-box"></div>
+        </section>
     </main>
 
     <script>
@@ -618,7 +684,7 @@
             S4: {
                 meta: "[의식 붕괴]",
                 title: "흔들리는 망자 계단",
-                visual: "붉은 결계로 둘러싸인 악산의 돌 제단에서 영매가 피를 흘리며 무속의 진을 유지하고, ‘해’의 가혹한 빛이 불개를 태워 죽이려 한다.",
+                visual: "붉은 결계로 둘러싸인 돌 제단에서 영매가 피를 흘리며 무속의 진을 유지하고, ‘해’의 가혹한 빛이 불개를 태워 죽이려 한다.",
                 getDialogue: () => {
                     let log = "";
                     if (S < 50) log = "계단이 금방이라도 무너질 듯 위태롭습니다. ";
