@@ -622,7 +622,7 @@
         let S = 0, E = 0, B = 0; 
         let history = { sun: false, moon: false };
         let timerInterval = null;
-        let timeLeft = 20; 
+        let timeLeft = 30; 
         let currentSceneId = "S1"; 
 
         const scenes = {
@@ -784,7 +784,7 @@
             
             timerInterval = setInterval(() => {
                 timeLeft -= 0.1;
-                const percentage = (timeLeft / 20) * 100; 
+                const percentage = (timeLeft / 30) * 100; 
                 timerFill.style.width = percentage + "%";
 
                 if (timeLeft <= 0) {
